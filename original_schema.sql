@@ -200,7 +200,74 @@ CREATE TABLE customer_addresses (
 );
 
 -- =========================================
--- 3. PRODUCT & SERVICE MANAGEMENT
+-- 3. MERCHANT MANAGEMENT
+-- =========================================
+
+-- Merchant business accounts (cross-tenant)
+CREATE TABLE merchants (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL 
+        CONSTRAINT valid_merchant_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    phone VARCHAR(20) 
+        CONSTRAINT valid_merchant_phone CHECK (phone IS NULL OR phone ~* '^\+?[1-9]\d{1,14}$'),
+    password_hash VARCHAR(255),
+    business_name VARCHAR(255) NOT NULL,
+    business_description TEXT,
+    business_hours JSONB DEFAULT '{}',
+    email_verified_at TIMESTAMPTZ,
+    email_verification_token VARCHAR(255),
+    is_available BOOLEAN DEFAULT true,
+    failed_login_attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    status VARCHAR(20) DEFAULT 'active' 
+        CHECK (status IN ('pending', 'active', 'suspended', 'inactive', 'locked')),
+    last_login_at TIMESTAMPTZ,
+    last_login_ip INET,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Multi-tenant merchant access (junction table)
+CREATE TABLE merchant_tenants (
+    merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hub_id UUID NOT NULL REFERENCES hubs(id) ON DELETE CASCADE,
+    enrolled_at TIMESTAMPTZ DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT true,
+    PRIMARY KEY (merchant_id, tenant_id, hub_id)
+);
+
+-- Merchant menu categories
+CREATE TABLE merchant_categories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    display_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Merchant menu items with flexible pricing
+CREATE TABLE merchant_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    category_id UUID REFERENCES merchant_categories(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    base_price DECIMAL(10,2) NOT NULL,
+    tenant_pricing JSONB DEFAULT '{}',
+    modifiers JSONB DEFAULT '[]',
+    image_url VARCHAR(500),
+    is_available BOOLEAN DEFAULT true,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =========================================
+-- 4. PRODUCT & SERVICE MANAGEMENT
 -- =========================================
 
 -- Product/service categorization
@@ -292,6 +359,7 @@ CREATE TABLE orders (
     reference_number VARCHAR(20) UNIQUE NOT NULL,
     service_type VARCHAR(50) NOT NULL,
     status VARCHAR(50) DEFAULT 'placed',
+    merchant_status VARCHAR(50) DEFAULT 'new' CHECK (merchant_status IN ('new', 'confirmed', 'for_pickup')),
     priority VARCHAR(20) DEFAULT 'normal' CHECK (priority IN ('emergency', 'high', 'normal', 'low')),
     can_interrupt_routes BOOLEAN DEFAULT false,
     customer_name VARCHAR(255) NOT NULL,
@@ -333,7 +401,7 @@ CREATE TABLE order_details (
     service_type VARCHAR(50) NOT NULL,
     
     -- Food delivery specific
-    restaurant_id UUID,
+    merchant_id UUID REFERENCES merchants(id) ON DELETE SET NULL,
     preparation_time_minutes INTEGER,
     special_dietary_requirements TEXT,
     
@@ -706,8 +774,16 @@ CREATE INDEX idx_riders_tenant_hub ON riders(tenant_id, hub_id);
 CREATE INDEX idx_users_tenant_role ON users(tenant_id, role);
 CREATE INDEX idx_products_tenant_hub ON products(tenant_id, hub_id);
 
+-- Merchant Management
+CREATE INDEX idx_merchant_tenants_merchant ON merchant_tenants(merchant_id, tenant_id);
+CREATE INDEX idx_merchant_tenants_tenant_hub ON merchant_tenants(tenant_id, hub_id);
+CREATE INDEX idx_merchant_categories_merchant ON merchant_categories(merchant_id, display_order);
+CREATE INDEX idx_merchant_items_merchant ON merchant_items(merchant_id, is_available);
+CREATE INDEX idx_merchant_items_category ON merchant_items(category_id, display_order) WHERE category_id IS NOT NULL;
+
 -- Order Management (High Priority)
 CREATE INDEX idx_orders_status_created ON orders(status, created_at DESC);
+CREATE INDEX idx_orders_merchant_status ON orders(merchant_status, created_at DESC);
 CREATE INDEX idx_orders_rider_status ON orders(rider_id, status) WHERE rider_id IS NOT NULL;
 CREATE INDEX idx_orders_service_type_status ON orders(service_type, status);
 CREATE INDEX idx_orders_customer_created ON orders(customer_id, created_at DESC);
@@ -772,6 +848,8 @@ CREATE INDEX idx_financial_audit_log_entity ON financial_audit_log(entity_type, 
 CREATE INDEX idx_customers_email_verification ON customers(email_verification_token) WHERE email_verification_token IS NOT NULL;
 CREATE INDEX idx_users_email_verification ON users(email_verification_token) WHERE email_verification_token IS NOT NULL;
 CREATE INDEX idx_riders_device_push_token ON riders(device_id, push_notification_token) WHERE push_notification_token IS NOT NULL;
+CREATE INDEX idx_merchants_email_status ON merchants(email, status);
+CREATE INDEX idx_merchants_email_verification ON merchants(email_verification_token) WHERE email_verification_token IS NOT NULL;
 
 -- Performance & Rating
 CREATE INDEX idx_order_ratings_rider_created ON order_ratings(rider_id, created_at DESC);
