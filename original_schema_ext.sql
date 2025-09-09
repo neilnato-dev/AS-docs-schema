@@ -16,6 +16,12 @@ ALTER TABLE pricing_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE routes ENABLE ROW LEVEL SECURITY;
 
+-- Enable RLS on merchant tables
+ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchant_tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchant_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchant_items ENABLE ROW LEVEL SECURITY;
+
 -- Tenant isolation policies
 CREATE POLICY tenant_isolation_tenants ON tenants
     FOR ALL USING (id = current_setting('app.current_tenant_id')::UUID);
@@ -38,6 +44,19 @@ CREATE POLICY tenant_isolation_routes ON routes
 -- Rider self-access policy
 CREATE POLICY rider_self_access ON riders
     FOR ALL USING (id = current_setting('app.current_rider_id')::UUID);
+
+-- Merchant self-access policies (merchants see only their own data)
+CREATE POLICY merchant_self_access ON merchants
+    FOR ALL USING (id = current_setting('app.current_merchant_id')::UUID);
+
+CREATE POLICY merchant_tenants_access ON merchant_tenants
+    FOR ALL USING (merchant_id = current_setting('app.current_merchant_id')::UUID);
+
+CREATE POLICY merchant_categories_access ON merchant_categories
+    FOR ALL USING (merchant_id = current_setting('app.current_merchant_id')::UUID);
+
+CREATE POLICY merchant_items_access ON merchant_items
+    FOR ALL USING (merchant_id = current_setting('app.current_merchant_id')::UUID);
 
 -- Customer self-access policy (no RLS on customers table - platform level)
 -- Customer addresses are accessible by the customer who owns them
@@ -100,6 +119,21 @@ CREATE TRIGGER orders_updated_at_trigger
 
 CREATE TRIGGER routes_updated_at_trigger
     BEFORE UPDATE ON routes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER merchants_updated_at_trigger
+    BEFORE UPDATE ON merchants
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER merchant_categories_updated_at_trigger
+    BEFORE UPDATE ON merchant_categories
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER merchant_items_updated_at_trigger
+    BEFORE UPDATE ON merchant_items
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
