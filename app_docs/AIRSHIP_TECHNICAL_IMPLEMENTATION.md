@@ -25,7 +25,7 @@
 #### **Tenant Isolation Strategy**
 - **Approach:** Soft isolation using `tenant_id` in all tables
 - **Row Level Security:** Database-enforced tenant separation with RLS policies
-- **Scale Target:** Support 150 tenants in Year 1 with 20% monthly growth
+- **Scale Target:** Support 155 tenants in Year 1 with 20% monthly growth
 - **Data Separation:** Complete isolation - no cross-tenant data access possible
 
 #### **Core Tenant Structure**
@@ -156,7 +156,7 @@ CREATE TABLE riders (
 - **Purpose:** Real-time location updates for active riders
 - **Frequency:** 30-45 second intervals during active delivery
 - **Data Retention:** 1-hour automatic expiry
-- **Volume:** 450K location updates/hour (3,750 riders × 120 updates/hour)
+- **Volume:** 91,875 location updates/hour peak (1,150 riders × 80 updates/hour during active delivery)
 
 **PostgreSQL Layer (Historical Data):**
 ```sql
@@ -339,21 +339,53 @@ CREATE TABLE sync_queue (
 - **Cleanup Strategy:** Auto-delete successful items after 24 hours
 - **Manual Review:** Flag failed items after max attempts for manual intervention
 
+### **Infrastructure Scaling & Provincial Market Adaptations**
+
+#### **Infrastructure Scaling Checkpoints**
+**Phased Scaling Strategy:**
+- **3,000 orders/day:** Single-instance architecture ($400-500/month)
+- **5,500 orders/day:** Upgraded database specs ($500-700/month) 
+- **6,000 orders/day:** Read replicas + load balancing ($800-1,000/month)
+- **10,000 orders/day:** Horizontal scaling + clustering ($1,500-2,000/month)
+
+**Peak Load Management:**
+- **Primary peaks:** 11am-1pm and 5pm-7pm requiring peak database capacity
+- **Weather scaling:** Infrastructure must handle 2-3x normal capacity during extreme weather (typhoons/rain seasons)
+- **Holiday adjustments:** Flexible auto-scaling capabilities for variable demand patterns
+
+#### **Provincial Market Optimizations**
+**Connectivity Adaptations:**
+- **Offline-first architecture:** Extended sync tolerance for unreliable provincial connectivity
+- **Priority-based sync queue:** Financial (100 attempts) > Task completion (50) > Status (50) > Media (20) > Location (20)
+- **Local CDN nodes:** Bandwidth optimization for cost-effective service delivery
+
+**Payment Processing Adaptations:**
+- **COD support:** 70-80% COD in provincial markets vs 50% in Metro Manila
+- **Cash collection tracking:** Robust reconciliation workflows for high COD usage
+- **Payment method distribution:** Adapted for provincial payment preferences
+
+**Customer Behavior Optimizations:**
+- **Conservative tracking frequency:** Provincial customers track 25% less frequently than Metro Manila
+- **Food delivery:** 4-6 tracking sessions per order (vs 8-12 in Metro Manila)
+- **Pickup & delivery:** 2-3 sessions per order
+- **Shopping:** 1-2 sessions per order
+- **Session duration:** 1-2 minutes average (shorter attention spans)
+
 ### **Performance & Scalability Requirements**
 
-#### **Response Time Targets**
+#### **Response Time Targets (Provincial-Optimized)**
 - **Order placement/confirmation:** 10 seconds maximum
 - **Rider assignment (manual):** 10 seconds maximum  
 - **Rider assignment (auto):** 20 seconds maximum
-- **Real-time location updates:** 30 seconds maximum
+- **Real-time location updates:** 30 seconds maximum (adaptive frequency)
 - **Route optimization calculation:** 60 seconds maximum
 
 #### **Volume Capacity Targets**
 - **Total Orders:** 10,000 orders/day across ALL tenants
-- **Per Tenant Average:** ~67 orders/day per tenant (150 tenants)
+- **Per Tenant Average:** ~65 orders/day per tenant (155 tenants)
 - **Peak Processing:** 1,000 orders/hour system-wide
-- **Location Updates:** 450K location updates/hour  
-- **Concurrent Connections:** 31K Socket.io connections
+- **Location Updates:** 875K location updates/day, 91,875 peak updates/hour (realistic provincial usage patterns)  
+- **Concurrent Connections:** 2,475 Socket.io connections at 10K orders/day (realistic provincial usage patterns)
 
 #### **Database Indexing Strategy**
 
@@ -556,34 +588,41 @@ $$ LANGUAGE plpgsql;
 **Status:** Architecture framework defined, implementation details require resolution
 **Critical Missing Elements:**
 
-#### **Redis Data Structure Design**
+#### **Optimized Redis Data Structure Design**
 ```javascript
-// Proposed Redis structures for location tracking
+// Hybrid Redis + PostgreSQL with performance optimizations
 rider:location:{rider_id} = {
-  "lat": 14.5995,
-  "lng": 120.9842,
-  "accuracy": 15.5,
-  "timestamp": "2024-01-01T12:00:00Z",
-  "speed": 25.5,
-  "heading": 180,
-  "battery_level": 85
+  "batch": [
+    {
+      "lat": 14.5995,
+      "lng": 120.9842,
+      "accuracy": 15.5,
+      "timestamp": "2024-01-01T12:00:00Z",
+      "speed": 25.5
+    },
+    // 2-4 more points batched together
+  ],
+  "geofence_status": "moving", // stationary, moving, at_destination
+  "last_movement": "2024-01-01T12:00:00Z",
+  "adaptive_frequency": "active_delivery" // idle, active_delivery, at_stops
 }
 
-// Route progress tracking
+// Route progress with compression
 route:progress:{route_id} = {
   "current_stop": 3,
   "completed_stops": [1, 2],
+  "polyline_route": "u{~vFvyys@fS]", // Google Maps polyline format
   "estimated_completion": "2024-01-01T15:30:00Z",
-  "total_distance_remaining": 12.5,
   "rider_deviation": false
 }
 ```
 
-**Unresolved Issues:**
-- **Conflict Resolution:** When Redis and PostgreSQL data diverge during network failures
-- **Network Recovery:** Protocols for real-time update recovery after connection loss
-- **Data Consistency:** Guarantees between Redis cache and PostgreSQL database
-- **Memory Management:** Redis memory optimization for 450K location updates/hour
+**Performance Optimizations:**
+- **Adaptive Frequency:** Idle (2-3 min), Active delivery (30 sec), At stops (10 sec)
+- **Geofencing:** Stop updates when riders stationary (50m threshold, 100m movement trigger)
+- **Batching Strategy:** Group 3-5 location points per API call reducing database writes by 70-80%
+- **Route Compression:** Google Maps polyline format achieves 90% storage reduction vs individual GPS points
+- **Tiered Caching:** Hot (Redis), Warm (Redis), Cold (PostgreSQL) with 1-hour TTL for active riders
 
 ### **2. Route Optimization Algorithm Integration**
 

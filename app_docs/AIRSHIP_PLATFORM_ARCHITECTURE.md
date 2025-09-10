@@ -156,29 +156,33 @@
 #### **Service-Specific Features**
 
 **Food Delivery:**
-- Restaurant browsing with menus and ratings
-- Item customization and cart management
-- Order tracking from restaurant preparation through delivery
+- Merchant browsing with menus and ratings
+- Item customization and cart management  
+- Order tracking from merchant preparation through delivery
+- Preparation time: 55-65 minutes total (30min prep + 10min pickup + 15-25min travel)
 
 **Shopping Services:**
 - Store selection and shopping list creation
 - Budget setting and purchase approval
 - Receipt verification and expense tracking
+- Fulfillment time: 55-95 minutes total (30-60min shopping + 10min pickup + 15-25min travel)
 
 **Errand Services:**
 - Task description and requirement specification
 - Deadline setting and priority handling
 - Progress updates and completion confirmation
+- Fulfillment time: Variable based on task complexity
 
 **Transportation:**
 - Pickup and destination setting
 - Vehicle type selection based on passenger count
 - Trip tracking and fare calculation
+- Direct service (no merchant mediation)
 
 ### **4. Merchant App** (Mobile Application)
 
 #### **Primary Users**
-- Restaurant owners and kitchen staff
+- Merchant owners and kitchen staff (restaurants, stores, pharmacies)
 - Store owners and retail personnel  
 - Pharmacy and grocery managers
 - Any business receiving orders through the platform
@@ -213,16 +217,18 @@
 #### **Service-Specific Features**
 
 **Food Service Integration:**
-- Menu item availability management
-- Kitchen preparation time estimation
+- Menu item availability management via merchant categories and items
+- Kitchen preparation time estimation (30-minute average)
 - Special dietary requirement handling
 - Order modification and substitution management
+- Tenant-specific pricing via JSONB field
 
 **Shopping Service Integration:**
 - Product availability verification
-- Price confirmation and updates
-- Inventory status communication
+- Price confirmation and updates via merchant system
+- Inventory status communication (simple on/off availability)
 - Receipt generation and verification
+- Cross-tenant merchant sharing capability
 
 ---
 
@@ -244,8 +250,9 @@ Customer App → Admin Dashboard → Rider Assignment → Service Execution
 ```
 Customer App → Merchant App → Admin Dashboard → Rider Assignment → Service Execution
 ```
-- **Food Delivery:** Restaurant order preparation required
-- **Shopping Services (Pabili):** Store order confirmation needed
+- **Food Delivery:** Merchant order preparation required (serves food_delivery service type)
+- **Shopping Services (Pabili):** Store order confirmation needed (serves shopping service type)
+- **Cross-Tenant Support:** Single merchant can serve multiple tenants with tenant-specific pricing
 
 #### **Order Processing Workflow**
 
@@ -278,7 +285,7 @@ Customer App → Merchant App → Admin Dashboard → Rider Assignment → Servi
 ### **Cross-Platform Communication**
 
 #### **Real-Time Updates**
-- **Socket.io Integration:** 31K concurrent connection support
+- **Socket.io Integration:** 2,475 concurrent connection support (realistic provincial usage patterns)
 - **Event Broadcasting:** Status changes propagated to all relevant applications
 - **Selective Updates:** Users receive only relevant notifications based on role and involvement
 
@@ -429,7 +436,7 @@ Customer App → Merchant App → Admin Dashboard → Rider Assignment → Servi
 ### **Real-Time Communication**
 
 #### **Socket.io Implementation**
-- **Connection Management:** Support for 31K concurrent connections
+- **Connection Management:** Support for 2,475 concurrent connections at 10K orders/day (provincial market optimized)
 - **Event Types:** Order updates, rider locations, system notifications, emergency alerts
 - **Selective Broadcasting:** Targeted updates based on user roles and involvement
 - **Connection Recovery:** Robust reconnection and state synchronization

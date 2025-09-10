@@ -8,7 +8,7 @@
 
 ### **Development Phase: 1 Month Complete Implementation**
 
-**Target:** Production-ready multi-tenant delivery management platform supporting 10,000 orders/day across 150 tenants with full offline mobile capabilities and real-time optimization.
+**Target:** Production-ready multi-tenant delivery management platform supporting 10,000 orders/day across 155 tenants with full offline mobile capabilities and real-time optimization.
 
 #### **Week 1-2: Database Foundation & Core Architecture**
 - Complete PostgreSQL schema implementation with multi-tenant isolation
@@ -446,7 +446,7 @@ function broadcastEvent(eventType, data, filters) {
 ```
 
 **Connection Management:**
-- **Connection Pooling:** Support 31K concurrent connections
+- **Connection Pooling:** Support 2,475 concurrent connections (realistic provincial usage patterns)
 - **Auto-Reconnection:** Robust reconnection with state recovery
 - **Room Management:** Tenant/hub-based room segregation
 - **Message Queuing:** Persist messages for offline users
@@ -519,23 +519,26 @@ $$ LANGUAGE plpgsql;
 
 ### **Immediate Implementation Needs**
 
-1. **Order Status System:** Implement dual status approach (operational + customer)
-2. **Authentication Method:** Finalize JWT implementation details and session management
-3. **Route Optimization APIs:** Define algorithm interfaces and data exchange formats
-4. **Emergency Order Logic:** Implement priority-based route interruption and capacity override
-5. **Capacity Management:** Implement rider capacity tracking and enforcement algorithms
-6. **Reference Number Generation:** Define generation strategy and format (tenant-specific vs global)
-7. **Real-time Location Processing:** Implement Redis + PostgreSQL hybrid processing architecture
-8. **Sync Queue Processing:** Implement priority-based queue processing with automated cleanup
+1. **Merchant Integration System:** Implement 4-table merchant architecture (merchants, merchant_tenants, merchant_categories, merchant_items) with cross-tenant sharing
+2. **Order Status System:** Implement dual status approach (operational + customer + merchant_status)
+3. **Authentication Method:** Finalize JWT implementation details and session management
+4. **Route Optimization APIs:** Define algorithm interfaces and data exchange formats
+5. **Emergency Order Logic:** Implement priority-based route interruption and capacity override
+6. **Capacity Management:** Implement rider capacity tracking and enforcement algorithms
+7. **Reference Number Generation:** Define generation strategy and format (tenant-specific vs global)
+8. **Real-time Location Processing:** Implement Redis + PostgreSQL hybrid processing architecture with 70-80% cost optimization
+9. **Sync Queue Processing:** Implement priority-based queue processing with automated cleanup
 
 ### **Configuration Requirements**
 
-1. **Optimization Factors:** UI configuration to algorithm parameter mapping and validation
-2. **Pricing Rules:** Time-based activation and pricing factor combination logic
-3. **Work Schedule Integration:** Automatic route duration limits and break scheduling
-4. **Hub Transfer Coordination:** Timing and capacity management between interconnected hubs
-5. **Zone Priority Resolution:** Implement hub selection logic for overlapping delivery zones
-6. **Emergency Order Policies:** Define capacity override rules and pricing premium calculations
+1. **Merchant System Configuration:** Cross-tenant merchant sharing, tenant-specific pricing via JSONB, menu data synchronization
+2. **Service Type Scope:** Configure merchants for food_delivery and shopping service types only
+3. **Optimization Factors:** UI configuration to algorithm parameter mapping and validation
+4. **Pricing Rules:** Time-based activation and pricing factor combination logic (peak hours 11am-1pm, 5pm-7pm)
+5. **Work Schedule Integration:** Automatic route duration limits and break scheduling
+6. **Hub Transfer Coordination:** Timing and capacity management between interconnected hubs
+7. **Zone Priority Resolution:** Implement hub selection logic for overlapping delivery zones
+8. **Emergency Order Policies:** Define capacity override rules and pricing premium calculations
 
 ### **Data Processing & Analytics Implementation**
 
@@ -565,7 +568,7 @@ $$ LANGUAGE plpgsql;
 ### **1. Real-Time Data Synchronization Architecture**
 
 **Decision Required:** Redis data structure design and PostgreSQL integration
-**Impact:** Affects 450K location updates/hour processing capability
+**Impact:** Affects 91,875 location updates/hour peak processing capability (provincial usage patterns)
 **Timeline:** Must be resolved by Day 29
 
 **Options:**
@@ -629,10 +632,11 @@ $$ LANGUAGE plpgsql;
 - **Route Optimization Quality:** >80% improvement over manual route planning
 
 ### **Scale Validation**
-- **Load Testing:** Simulate 10,000 orders/day with 450K location updates/hour
-- **Concurrent User Testing:** Verify 31K simultaneous Socket.io connections
+- **Load Testing:** Simulate 10,000 orders/day with 875K location updates/day (91,875 peak/hour)
+- **Concurrent User Testing:** Verify 2,475 simultaneous Socket.io connections (provincial usage patterns)
 - **Database Performance:** Query response times under 100ms for critical operations
 - **Mobile App Performance:** Offline operation for 24+ hours without data loss
+- **Performance Optimization:** Validate 70-80% cost reduction through geofencing, batching, route compression
 
 ### **Integration Testing Strategy**
 - **End-to-End Workflows:** Complete order lifecycle testing for all service types

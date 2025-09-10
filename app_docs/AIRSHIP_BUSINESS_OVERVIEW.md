@@ -56,10 +56,17 @@ Airship Lite is a **multi-tenant last-mile delivery management platform** design
 
 ### Target Market Analysis
 
-#### **Primary Geographic Focus**
-- **Phase 1:** Philippines (urban and suburban areas)
-- **Phase 2:** Southeast Asia regional expansion
-- **Phase 3:** Global scaling capability
+#### **Primary Geographic Focus - Provincial Market Strategy**
+- **Phase 1:** Philippines (mixed provincial areas outside Metro Manila) - leveraging existing 64 tenant relationships
+- **Phase 2:** Metro Manila expansion after proven provincial success
+- **Phase 3:** Southeast Asia regional expansion
+- **Phase 4:** Global scaling capability
+
+**Strategic Rationale:**
+- Current 64 tenants already established in provincial markets generating 4,568 daily orders
+- Provincial markets offer less competition vs saturated Metro Manila market
+- Infrastructure and operational costs lower in provincial markets
+- Early adopters provide proven demand and local market knowledge
 
 #### **Primary Target Segments**
 
@@ -102,11 +109,24 @@ Airship Lite is a **multi-tenant last-mile delivery management platform** design
 - **Hub-based operations** allowing multi-location management
 - **Configurable service modules** enabling expanded revenue streams
 
-#### **Scale Targets**
-- **Q1 Target:** 50 active tenants
-- **Year 1 Target:** 150 active tenants
-- **Growth Rate:** 20% monthly growth sustainability
-- **Volume Capacity:** 10,000 orders/day across all tenants
+#### **Scale Targets - Phased Growth Strategy**
+**Current Operational Base:**
+- **Existing tenants:** 64 active tenants in provincial markets
+- **Current volume:** 4,568 orders/day with proven demand
+- **Top performers:** 42 high-volume tenants (Highest + High priority levels)
+
+**Growth Phases:**
+- **Phase 1 (Launch):** 42 top-performing tenants, 3,000 orders/day 
+- **Phase 2 (Expansion):** All 64 existing tenants + 20% adoption boost, 5,500 orders/day
+- **Phase 3 (New Markets):** New tenant acquisition + direct restaurants, 6,000 orders/day
+- **Phase 4 (2-Year Target):** Geographic expansion to 10,000 orders/day
+
+**Service Distribution (Based on Actual Data from 64 Provincial Tenants):**
+- **Food Delivery:** 80% of volume (3,654 orders/day) - primary focus with 55-65 minute fulfillment
+- **Pickup & Delivery:** 15% of volume (685 orders/day) - established demand with 25-45 minute fulfillment  
+- **Shopping Services:** 5% of volume (229 orders/day) - growth opportunity with 55-95 minute fulfillment
+- **Transportation:** 0% (planned future addition)
+- **Current baseline:** 4,568 total orders/day across all services
 
 ---
 
@@ -143,12 +163,13 @@ Airship Lite is a **multi-tenant last-mile delivery management platform** design
 - Multi-restaurant and chain support
 - Specialized delivery requirements (thermal transport)
 
-**Target Clients:** Restaurants, cloud kitchens, food courts, catering services, meal subscription businesses
+**Target Clients:** Merchants (restaurants, cloud kitchens, food courts), catering services, meal subscription businesses using merchant system with cross-tenant sharing capability
 
 **Order Flow:**
 ```
-Customer browses restaurants → Places food order → Restaurant (Merchant App) confirms → Kitchen prepares → Rider collects → Customer delivery
+Customer browses merchants → Places food order → Merchant (Merchant App) confirms → Kitchen prepares → Rider collects → Customer delivery
 ```
+**Fulfillment Time:** 55-65 minutes total (30min preparation + 10min pickup + 15-25min travel)
 
 #### 🛒 **Shopping Services Module (Pabili)**
 
@@ -167,6 +188,7 @@ Customer browses restaurants → Places food order → Restaurant (Merchant App)
 ```
 Customer creates shopping list → Store (Merchant App) receives request → Rider shops at store → Purchase verification → Customer delivery with receipts
 ```
+**Fulfillment Time:** 55-95 minutes total (30-60min shopping + 10min pickup + 15-25min travel)
 
 #### 📋 **Errand Services Module (Pasuyo)**
 
@@ -185,6 +207,7 @@ Customer creates shopping list → Store (Merchant App) receives request → Rid
 ```
 Customer describes task → Admin assigns to qualified rider → Rider performs errand → Proof of completion → Task closure
 ```
+**Fulfillment Time:** Variable based on task complexity (direct service, no merchant mediation)
 
 #### 🚗 **Transportation Module**
 
@@ -203,6 +226,7 @@ Customer describes task → Admin assigns to qualified rider → Rider performs 
 ```
 Customer requests ride → Driver assignment → Passenger pickup → Safe transport to destination → Trip completion and payment
 ```
+**Fulfillment Time:** Variable based on distance (direct service, no merchant mediation)
 
 ---
 
@@ -229,12 +253,21 @@ Customer requests ride → Driver assignment → Passenger pickup → Safe trans
 - Instant cross-platform notifications
 
 **Offline-First Architecture:**
-- Reliable mobile operation with poor connectivity
-- Priority-based sync queue for critical operations
-- Local data storage with intelligent synchronization
-- Robust network failure recovery protocols
+- Reliable mobile operation with poor connectivity (critical for provincial markets)
+- Priority-based sync queue: Financial (100 attempts) > Task completion (50) > Status (50) > Media (20) > Location (20)
+- Local data storage with intelligent synchronization via SQLite
+- Extended sync tolerance for unreliable provincial internet infrastructure
+- Robust network failure recovery protocols with infinite retry for financial data
+- Performance optimization: 70-80% cost reduction through geofencing, batching, and route compression
 
-### **Deployment & Scalability Advantages**
+### **Deployment & Provincial Market Advantages**
+
+**Provincial Market Optimizations:**
+- **Local infrastructure:** Provincial-optimized architecture with local CDN nodes
+- **Payment preferences:** 70-80% COD support vs 50% in Metro Manila
+- **Connectivity resilience:** Offline-first design for unreliable provincial internet
+- **Weather adaptations:** 2-3x capacity scaling during typhoon/rain seasons
+- **Customer behavior:** Conservative tracking patterns (4-6 sessions vs 8-12 Metro Manila)
 
 **Rapid Market Entry:**
 - Self-service onboarding without intensive support requirements
@@ -314,14 +347,21 @@ Customer requests ride → Driver assignment → Passenger pickup → Safe trans
 
 ### **Market Size & Opportunity**
 
-**Philippines Market Context:**
-- Large population transitioning to digital services
-- High mobile adoption with limited traditional logistics infrastructure
-- Growing e-commerce market requiring last-mile solutions
-- Existing businesses seeking operational digitization
+**Provincial Philippines Market Context:**
+- **Established operations:** 64 existing tenants generating 4,568 daily orders in provincial areas
+- **Competitive advantages:** Deep provincial market understanding vs Metro Manila competitors
+- **Infrastructure optimization:** Local CDN nodes and bandwidth optimization for cost-effective delivery
+- **Market characteristics:** Less time-pressured customers, higher COD usage (70-80%), weather-sensitive demand
+
+**Provincial Market Competitive Positioning:**
+- **Geographic advantage:** Deep understanding of provincial logistics challenges
+- **Operational focus:** Reliability and efficiency over advanced features
+- **Partnership strategy:** Strengthen existing delivery service relationships (90-95% of business)
+- **Technology edge:** Superior offline capabilities and local optimization
+- **Barriers to entry:** Existing relationships provide significant protection against competitors
 
 **Southeast Asia Expansion:**
-- Similar market conditions across region
+- Similar market conditions across region with proven provincial model
 - Cultural familiarity with service types (especially Pabili/Pasuyo concepts)
 - Growing middle class demanding convenient services
 - Fragmented delivery market open to consolidation
