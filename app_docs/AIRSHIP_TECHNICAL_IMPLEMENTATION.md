@@ -76,7 +76,7 @@ CREATE TABLE orders (
     payment_method VARCHAR(50),
     
     -- Service-specific structured fields
-    restaurant_id UUID, -- Food delivery
+    merchant_id UUID, -- Food delivery and shopping
     estimated_prep_time INTEGER, -- Food delivery
     vehicle_type VARCHAR(50), -- Transportation
     passenger_count INTEGER, -- Transportation

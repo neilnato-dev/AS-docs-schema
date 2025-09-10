@@ -30,7 +30,7 @@ This guide provides comprehensive volume assumptions and infrastructure requirem
 
 - **Food Delivery**: 80% (3,654 orders/day)
 - **Pickup & Delivery**: 15% (685 orders/day)
-- **Shopping**: 5% (229 orders/day)
+- **Shopping**: 5% (228 orders/day)
 - **Transportation**: 0% (not currently offered)
 
 ### Current Tenant Priority Distribution

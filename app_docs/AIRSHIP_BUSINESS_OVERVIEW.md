@@ -124,7 +124,7 @@ Airship Lite is a **multi-tenant last-mile delivery management platform** design
 **Service Distribution (Based on Actual Data from 64 Provincial Tenants):**
 - **Food Delivery:** 80% of volume (3,654 orders/day) - primary focus with 55-65 minute fulfillment
 - **Pickup & Delivery:** 15% of volume (685 orders/day) - established demand with 25-45 minute fulfillment  
-- **Shopping Services:** 5% of volume (229 orders/day) - growth opportunity with 55-95 minute fulfillment
+- **Shopping Services:** 5% of volume (228 orders/day) - growth opportunity with 55-95 minute fulfillment
 - **Transportation:** 0% (planned future addition)
 - **Current baseline:** 4,568 total orders/day across all services
 
@@ -268,6 +268,7 @@ Customer requests ride → Driver assignment → Passenger pickup → Safe trans
 - **Connectivity resilience:** Offline-first design for unreliable provincial internet
 - **Weather adaptations:** 2-3x capacity scaling during typhoon/rain seasons
 - **Customer behavior:** Conservative tracking patterns (4-6 sessions vs 8-12 Metro Manila)
+- **Peak Operations:** Dual-peak pattern 11am-1pm and 5pm-7pm requiring peak capacity management
 
 **Rapid Market Entry:**
 - Self-service onboarding without intensive support requirements
