@@ -119,6 +119,17 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Simple organizational rider groupings (moved before riders table)
+CREATE TABLE rider_groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hub_id UUID NOT NULL REFERENCES hubs(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    settings JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Field workers/delivery personnel (separated from users)
 CREATE TABLE riders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -144,15 +155,15 @@ CREATE TABLE riders (
     vehicle_capacity INTEGER DEFAULT 10,
     max_volume_liters DECIMAL(8,2),
     max_weight_kg DECIMAL(8,2),
-    current_capacity_used INTEGER DEFAULT 0,
+    current_capacity_used INTEGER DEFAULT 0 CHECK (current_capacity_used >= 0 AND current_capacity_used <= vehicle_capacity),
     
     -- Operational Data
-    efficiency_score DECIMAL(4,2) DEFAULT 1.0,
+    efficiency_score DECIMAL(4,2) DEFAULT 1.0 CHECK (efficiency_score > 0),
     current_location GEOGRAPHY(POINT, 4326),
     assigned_area GEOGRAPHY(POLYGON, 4326),
     
     -- Performance & Rating
-    rating DECIMAL(3,2) DEFAULT 5.0,
+    rating DECIMAL(3,2) DEFAULT 5.0 CHECK (rating >= 1.0 AND rating <= 5.0),
     total_deliveries INTEGER DEFAULT 0,
     can_handle_emergency BOOLEAN DEFAULT false,
     is_verified BOOLEAN DEFAULT false,
@@ -176,16 +187,6 @@ CREATE TABLE riders (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Simple organizational rider groupings
-CREATE TABLE rider_groups (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    hub_id UUID NOT NULL REFERENCES hubs(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    settings JSONB DEFAULT '{}',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
 
 -- Saved delivery addresses per customer (no tenant_id - global addresses)
 CREATE TABLE customer_addresses (
@@ -256,7 +257,7 @@ CREATE TABLE merchant_items (
     category_id UUID REFERENCES merchant_categories(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    base_price DECIMAL(10,2) NOT NULL,
+    base_price DECIMAL(10,2) NOT NULL CHECK (base_price >= 0),
     tenant_pricing JSONB DEFAULT '{}',
     modifiers JSONB DEFAULT '[]',
     image_url VARCHAR(500),
@@ -291,7 +292,7 @@ CREATE TABLE products (
     category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    base_price DECIMAL(10,2) NOT NULL,
+    base_price DECIMAL(10,2) NOT NULL CHECK (base_price >= 0),
     service_type VARCHAR(50) NOT NULL,
     variations JSONB,
     is_available BOOLEAN DEFAULT true,
@@ -319,10 +320,11 @@ CREATE TABLE pricing_rules (
     service_type VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
     pricing_model VARCHAR(50) DEFAULT 'flat_rate' CHECK (pricing_model IN ('flat_rate', 'base_plus_distance')),
-    base_price DECIMAL(10,2) NOT NULL,
-    price_per_km DECIMAL(10,2) DEFAULT 0,
-    minimum_price DECIMAL(10,2),
-    maximum_price DECIMAL(10,2),
+    base_price DECIMAL(10,2) NOT NULL CHECK (base_price >= 0),
+    price_per_km DECIMAL(10,2) DEFAULT 0 CHECK (price_per_km >= 0),
+    minimum_price DECIMAL(10,2) CHECK (minimum_price IS NULL OR minimum_price >= 0),
+    maximum_price DECIMAL(10,2) CHECK (maximum_price IS NULL OR maximum_price >= 0),
+    CONSTRAINT price_range_check CHECK (minimum_price IS NULL OR maximum_price IS NULL OR minimum_price <= maximum_price),
     factors JSONB DEFAULT '{}',
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -378,13 +380,17 @@ CREATE TABLE orders (
     pickup_time_window_end TIMESTAMPTZ,
     delivery_time_window_start TIMESTAMPTZ,
     delivery_time_window_end TIMESTAMPTZ,
+    CONSTRAINT pickup_before_delivery CHECK (scheduled_pickup_time IS NULL OR scheduled_delivery_time IS NULL OR scheduled_pickup_time <= scheduled_delivery_time),
+    CONSTRAINT pickup_window_order CHECK (pickup_time_window_start IS NULL OR pickup_time_window_end IS NULL OR pickup_time_window_start < pickup_time_window_end),
+    CONSTRAINT delivery_window_order CHECK (delivery_time_window_start IS NULL OR delivery_time_window_end IS NULL OR delivery_time_window_start < delivery_time_window_end),
     payment_method VARCHAR(50) DEFAULT 'cod',
     payment_status VARCHAR(20) DEFAULT 'pending',
-    subtotal DECIMAL(10,2),
-    tax_amount DECIMAL(10,2),
-    delivery_fee DECIMAL(10,2),
-    tip_amount DECIMAL(10,2) DEFAULT 0,
-    total_amount DECIMAL(10,2) NOT NULL,
+    subtotal DECIMAL(10,2) CHECK (subtotal IS NULL OR subtotal >= 0),
+    tax_amount DECIMAL(10,2) CHECK (tax_amount IS NULL OR tax_amount >= 0),
+    delivery_fee DECIMAL(10,2) CHECK (delivery_fee IS NULL OR delivery_fee >= 0),
+    tip_amount DECIMAL(10,2) DEFAULT 0 CHECK (tip_amount >= 0),
+    total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount >= 0),
+    CONSTRAINT order_total_calculation CHECK (total_amount = COALESCE(subtotal, 0) + COALESCE(tax_amount, 0) + COALESCE(delivery_fee, 0) + COALESCE(tip_amount, 0)),
     special_instructions TEXT,
     proof_of_delivery_url VARCHAR(500),
     actual_pickup_time TIMESTAMPTZ,
@@ -435,8 +441,9 @@ CREATE TABLE order_items (
     product_id UUID REFERENCES products(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     quantity INTEGER DEFAULT 1,
-    unit_price DECIMAL(10,2) NOT NULL,
-    total_price DECIMAL(10,2) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price >= 0),
+    total_price DECIMAL(10,2) NOT NULL CHECK (total_price >= 0),
+    CONSTRAINT order_item_total_check CHECK (total_price = unit_price * quantity),
     variations JSONB,
     special_instructions TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -455,7 +462,10 @@ CREATE TABLE order_status_history (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     
     CONSTRAINT status_changed_by_check 
-    CHECK ((changed_by_user_id IS NOT NULL) != (changed_by_rider_id IS NOT NULL))
+    CHECK (
+        (changed_by_user_id IS NOT NULL AND changed_by_rider_id IS NULL) OR
+        (changed_by_user_id IS NULL AND changed_by_rider_id IS NOT NULL)
+    )
 );
 
 -- =========================================
@@ -556,7 +566,10 @@ CREATE TABLE route_assignments (
     rejection_reason TEXT,
     
     CONSTRAINT assignment_target_check 
-    CHECK ((rider_id IS NOT NULL) != (rider_group_id IS NOT NULL))
+    CHECK (
+        (rider_id IS NOT NULL AND rider_group_id IS NULL) OR
+        (rider_id IS NULL AND rider_group_id IS NOT NULL)
+    )
 );
 
 -- Route optimization history and performance tracking
@@ -597,6 +610,7 @@ CREATE TABLE hub_transfers (
     transfer_sequence INTEGER NOT NULL,
     from_hub_id UUID NOT NULL REFERENCES hubs(id),
     to_hub_id UUID NOT NULL REFERENCES hubs(id),
+    CONSTRAINT no_self_transfer CHECK (from_hub_id != to_hub_id),
     from_rider_id UUID REFERENCES riders(id),
     to_rider_id UUID REFERENCES riders(id),
     status VARCHAR(20) DEFAULT 'initiated',
@@ -692,7 +706,7 @@ CREATE TABLE sync_queue (
     payload JSONB NOT NULL,
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
     attempts INTEGER DEFAULT 0,
-    max_attempts INTEGER DEFAULT 50,
+    max_attempts INTEGER DEFAULT 50 CHECK (max_attempts >= 1 AND max_attempts <= 500),
     next_retry_at TIMESTAMPTZ DEFAULT NOW(),
     last_error TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -723,7 +737,7 @@ CREATE TABLE payment_transactions (
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     transaction_type VARCHAR(50) NOT NULL,
     payment_method VARCHAR(50) NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
     currency VARCHAR(3) DEFAULT 'PHP',
     status VARCHAR(20) NOT NULL,
     gateway_provider VARCHAR(50),
@@ -738,7 +752,7 @@ CREATE TABLE cod_collections (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     rider_id UUID NOT NULL REFERENCES riders(id) ON DELETE CASCADE,
-    amount_collected DECIMAL(10,2) NOT NULL,
+    amount_collected DECIMAL(10,2) NOT NULL CHECK (amount_collected > 0),
     collection_method VARCHAR(20) DEFAULT 'cash',
     collected_at TIMESTAMPTZ DEFAULT NOW(),
     reconciled_at TIMESTAMPTZ,
@@ -761,7 +775,10 @@ CREATE TABLE financial_audit_log (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     
     CONSTRAINT audit_actor_check 
-    CHECK ((user_id IS NOT NULL) != (rider_id IS NOT NULL))
+    CHECK (
+        (user_id IS NOT NULL AND rider_id IS NULL) OR
+        (user_id IS NULL AND rider_id IS NOT NULL)
+    )
 );
 
 -- =========================================
@@ -773,6 +790,18 @@ CREATE INDEX idx_orders_tenant_hub ON orders(tenant_id, hub_id);
 CREATE INDEX idx_riders_tenant_hub ON riders(tenant_id, hub_id);
 CREATE INDEX idx_users_tenant_role ON users(tenant_id, role);
 CREATE INDEX idx_products_tenant_hub ON products(tenant_id, hub_id);
+
+-- CRITICAL COMPOSITE INDEXES FOR PERFORMANCE
+CREATE INDEX idx_orders_tenant_status_created ON orders(tenant_id, status, created_at DESC);
+CREATE INDEX idx_orders_tenant_service_status ON orders(tenant_id, service_type, status);
+CREATE INDEX idx_orders_hub_status_created ON orders(hub_id, status, created_at DESC);
+CREATE INDEX idx_riders_hub_status_available ON riders(hub_id, status, account_status) WHERE account_status = 'active';
+CREATE INDEX idx_routes_tenant_status_created ON routes(tenant_id, status, created_at DESC);
+CREATE INDEX idx_pricing_rules_tenant_service_active ON pricing_rules(tenant_id, service_type, is_active, created_at DESC);
+CREATE INDEX idx_sync_queue_rider_priority_status ON sync_queue(rider_id, priority, status, created_at DESC);
+CREATE INDEX idx_order_items_order_product ON order_items(order_id, product_id) WHERE product_id IS NOT NULL;
+CREATE INDEX idx_route_stops_route_sequence_status ON route_stops(route_id, stop_sequence, status);
+CREATE INDEX idx_payment_transactions_order_status_created ON payment_transactions(order_id, status, created_at DESC);
 
 -- Merchant Management
 CREATE INDEX idx_merchant_tenants_merchant ON merchant_tenants(merchant_id, tenant_id);
@@ -804,9 +833,15 @@ CREATE INDEX idx_riders_email_status ON riders(email, account_status);
 CREATE INDEX idx_order_route_tracking_spatial ON order_route_tracking USING GIST(route_points);
 CREATE INDEX idx_hub_delivery_zones_spatial ON hub_delivery_zones USING GIST(boundary);
 CREATE INDEX idx_hub_delivery_zones_priority ON hub_delivery_zones(priority, is_active);
-CREATE INDEX idx_orders_pickup_location ON orders USING GIST(pickup_location);
+CREATE INDEX idx_orders_pickup_location ON orders USING GIST(pickup_location) WHERE pickup_location IS NOT NULL;
 CREATE INDEX idx_orders_delivery_location ON orders USING GIST(delivery_location);
-CREATE INDEX idx_riders_current_location ON riders USING GIST(current_location);
+CREATE INDEX idx_riders_current_location ON riders USING GIST(current_location) WHERE current_location IS NOT NULL;
+CREATE INDEX idx_riders_assigned_area ON riders USING GIST(assigned_area) WHERE assigned_area IS NOT NULL;
+CREATE INDEX idx_customer_addresses_location ON customer_addresses USING GIST(location);
+CREATE INDEX idx_hubs_location ON hubs USING GIST(location) WHERE location IS NOT NULL;
+CREATE INDEX idx_route_stops_location ON route_stops USING GIST(location);
+CREATE INDEX idx_location_accuracy_logs_location ON location_accuracy_logs USING GIST(location);
+CREATE INDEX idx_order_status_history_location ON order_status_history USING GIST(location) WHERE location IS NOT NULL;
 
 -- Real-time & Sync Performance
 CREATE INDEX idx_sync_queue_priority_status ON sync_queue(priority, status, next_retry_at) WHERE status = 'pending';
@@ -854,3 +889,27 @@ CREATE INDEX idx_merchants_email_verification ON merchants(email_verification_to
 -- Performance & Rating
 CREATE INDEX idx_order_ratings_rider_created ON order_ratings(rider_id, created_at DESC);
 CREATE INDEX idx_rider_performance_metrics_rider_date ON rider_performance_metrics(rider_id, calculation_date DESC);
+
+-- CRITICAL JSONB PERFORMANCE INDEXES
+CREATE INDEX idx_merchant_items_tenant_pricing ON merchant_items USING GIN(tenant_pricing);
+CREATE INDEX idx_merchant_items_modifiers ON merchant_items USING GIN(modifiers);
+CREATE INDEX idx_tenants_settings ON tenants USING GIN(settings);
+CREATE INDEX idx_hubs_settings ON hubs USING GIN(settings);
+CREATE INDEX idx_hubs_business_hours ON hubs USING GIN(business_hours);
+CREATE INDEX idx_order_details_additional_data ON order_details USING GIN(additional_data);
+CREATE INDEX idx_pricing_rules_factors ON pricing_rules USING GIN(factors);
+CREATE INDEX idx_optimization_configs_factors ON optimization_configurations USING GIN(factors);
+CREATE INDEX idx_routes_raw_algorithm_data ON routes USING GIN(raw_algorithm_data);
+CREATE INDEX idx_customers_notification_preferences ON customers USING GIN(notification_preferences);
+CREATE INDEX idx_riders_work_schedule ON riders USING GIN(work_schedule);
+CREATE INDEX idx_rider_groups_settings ON rider_groups USING GIN(settings);
+CREATE INDEX idx_merchants_business_hours ON merchants USING GIN(business_hours);
+CREATE INDEX idx_products_variations ON products USING GIN(variations);
+CREATE INDEX idx_order_items_variations ON order_items USING GIN(variations);
+CREATE INDEX idx_payment_transactions_gateway_response ON payment_transactions USING GIN(gateway_response);
+CREATE INDEX idx_sync_queue_payload ON sync_queue USING GIN(payload);
+CREATE INDEX idx_real_time_events_event_data ON real_time_events USING GIN(event_data);
+CREATE INDEX idx_financial_audit_log_old_values ON financial_audit_log USING GIN(old_values);
+CREATE INDEX idx_financial_audit_log_new_values ON financial_audit_log USING GIN(new_values);
+CREATE INDEX idx_route_edit_history_old_values ON route_edit_history USING GIN(old_values);
+CREATE INDEX idx_route_edit_history_new_values ON route_edit_history USING GIN(new_values);
