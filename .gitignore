@@ -1,5 +1,6 @@
+.claude/
 claude/
 CLAUDE.md
 PROTOCOL.md
 .gitignore
-_archive/
+app_docs/_archive/
